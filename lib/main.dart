@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 import 'services/prefs_service.dart';
 import 'screens/home_screen.dart';
@@ -21,7 +22,13 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   
-  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+  // sqflite ships native support for Android/iOS. Other platforms need an
+  // explicit factory so the app runs everywhere:
+  //   - Web     -> the FFI web backend (uses web/sqflite_sw.js + wasm)
+  //   - Desktop -> the FFI backend (macOS / Windows / Linux)
+  if (kIsWeb) {
+    databaseFactory = databaseFactoryFfiWeb;
+  } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
