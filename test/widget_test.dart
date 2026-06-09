@@ -1,30 +1,77 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Unit tests for the Player model: roster JSON parsing and the SQLite
+// map round-trip. These exercise the core data layer without needing a
+// device or network.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:braves_app/main.dart';
+import 'package:braves_app/models/player.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Player.fromRosterJson', () {
+    test('parses a normal roster entry', () {
+      final json = {
+        'person': {'id': 663586, 'fullName': 'Austin Riley'},
+        'jerseyNumber': '27',
+        'position': {'abbreviation': '3B'},
+      };
+      final p = Player.fromRosterJson(json);
+      expect(p.id, 663586);
+      expect(p.fullName, 'Austin Riley');
+      expect(p.jerseyNumber, '27');
+      expect(p.position, '3B');
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('falls back to safe defaults on missing fields', () {
+      final p = Player.fromRosterJson({});
+      expect(p.id, 0);
+      expect(p.fullName, 'Unknown Player');
+      expect(p.jerseyNumber, '--');
+      expect(p.position, '--');
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('builds the standard headshot URL from the id', () {
+      final p = Player.fromRosterJson({
+        'person': {'id': 660670, 'fullName': 'Ronald Acuña Jr.'},
+      });
+      expect(
+        p.headshotUrl,
+        'https://midfield.mlbstatic.com/v1/people/660670/spots/120',
+      );
+    });
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  group('SQLite map round-trip', () {
+    test('toMap then fromMap preserves all fields', () {
+      const original = Player(
+        id: 1,
+        fullName: 'Test Player',
+        jerseyNumber: '7',
+        position: 'SS',
+        batSide: 'Right',
+        throwSide: 'Right',
+        birthCountry: 'USA',
+        height: '6\' 1"',
+        weight: 200,
+        note: 'Great glove',
+        savedAt: 123456789,
+      );
+
+      final restored = Player.fromMap(original.toMap());
+
+      expect(restored.id, original.id);
+      expect(restored.fullName, original.fullName);
+      expect(restored.jerseyNumber, original.jerseyNumber);
+      expect(restored.position, original.position);
+      expect(restored.note, original.note);
+      expect(restored.weight, original.weight);
+      expect(restored.savedAt, original.savedAt);
+    });
+
+    test('fromMap tolerates a partially-corrupted row', () {
+      final restored = Player.fromMap({'id': 5});
+      expect(restored.id, 5);
+      expect(restored.fullName, 'Unknown Player');
+      expect(restored.note, '');
+    });
   });
 }

@@ -1,17 +1,130 @@
-# Braves App - CPSC 4150
+# Braves Roster & Favorites
 
-## What it does
-This is a Braves-themed app I built in Flutter. It has three screens. The first screen is just a welcome page with the Braves logo. The second screen shows some basic team info like the stadium and World Series titles. The third screen is where you can type in two batting averages and compare them to see which player is better. You can also tap on empty parts of the screen to change the background color.
+A Flutter app that fetches the **live Atlanta Braves active roster** from the free MLB Stats API and lets you save favorite players — with personal notes — to local storage so they survive app restarts and work fully offline.
 
-## How to run it
-Clone the repo, run flutter pub get, then flutter run and pick your simulator.
+> **The through-line:** Browse → Favorite → Remember. The API powers discovery; local storage powers memory.
 
-## Colors and contrast
-I used 5 Braves-themed colors for the background cycling: red, navy , gold , white , and dark charcoal . I used computeLuminance() to check if the background is light or dark and then switch the text to black or white so you can always read it.
+This is the combined **Solo 3 + Solo 4** submission (Fetch & Display + Local Persistence).
 
-## Test inputs
-- 0.325 vs 0.280 gives Player 1 winning by 0.045
-- 0.300 vs 0.300 gives a tie
-- leaving a field empty gives an error saying to enter a batting average
-- typing something like -0.5 gives an error saying it has to be between 0 and 1
-- typing letters instead of numbers gives an error saying it has to be a number
+---
+
+## API used
+
+**MLB Stats API** — public, free, no auth key required.
+
+- Roster endpoint (Part A):
+  `https://statsapi.mlb.com/api/v1/teams/144/roster?rosterType=active`
+  (`144` is the Atlanta Braves team id.)
+- Player detail endpoint:
+  `https://statsapi.mlb.com/api/v1/people/{playerId}`
+- Player headshots:
+  `https://midfield.mlbstatic.com/v1/people/{playerId}/spots/120`
+
+JSON is parsed into a typed Dart `Player` model (see [lib/models/player.dart](lib/models/player.dart)).
+
+---
+
+## Storage strategy — what goes where, and why
+
+| Layer | Used for | Why |
+| --- | --- | --- |
+| **SQLite** (`sqflite`) | Structured favorite players: name, jersey, position, bats/throws, height, weight, birth country, **personal note**, and saved-at timestamp. | Favorites are structured records that need querying, per-row deletes, and updates — a relational table is the right fit. |
+| **shared_preferences** | Lightweight settings: **dark mode** on/off, **sort order** (name A–Z / Z–A / jersey), and **last search query**. | These are small single values (a bool, two short strings) with no relational structure — key/value is ideal and restores instantly on launch. |
+
+### Data format (SQLite)
+
+Each saved item is one row in the `favorites` table:
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | INTEGER PRIMARY KEY | MLB player id — prevents duplicate saves |
+| `fullName` | TEXT | |
+| `jerseyNumber` | TEXT | |
+| `position` | TEXT | e.g. `3B`, `RF` |
+| `batSide` | TEXT | e.g. `Right` |
+| `throwSide` | TEXT | |
+| `birthCountry` | TEXT | |
+| `height` | TEXT | e.g. `6' 1"` |
+| `weight` | INTEGER | lbs |
+| `note` | TEXT | user's personal note |
+| `savedAt` | INTEGER | `millisecondsSinceEpoch` (newest-first ordering) |
+
+The table is created in the `onCreate` callback of `openDatabase()` — see [lib/services/database_helper.dart](lib/services/database_helper.dart).
+
+---
+
+## Project structure
+
+```
+lib/
+  main.dart                       App entry, theming, bottom-nav shell
+  models/player.dart              Typed model + JSON parsing + SQLite mapping
+  services/
+    api_service.dart              HTTP GET + JSON parsing (MLB Stats API)
+    database_helper.dart          SQLite CRUD for favorites
+    prefs_service.dart            shared_preferences (theme, sort, last query)
+  screens/
+    roster_screen.dart            Part A — fetch/search/display roster
+    player_detail_screen.dart     Detail view + save-with-note (API↔storage)
+    favorites_screen.dart         Part B — view/delete/clear saved players
+test/
+  widget_test.dart                Unit tests for the Player data layer
+```
+
+---
+
+## How to run
+
+```bash
+flutter pub get
+flutter run
+```
+
+Pick any connected device or emulator. The app also runs on desktop
+(`flutter run -d macos`) — `main()` initializes the sqflite FFI backend on
+desktop platforms automatically.
+
+**Android note:** `<uses-permission android:name="android.permission.INTERNET"/>`
+is already declared in `android/app/src/main/AndroidManifest.xml`.
+
+---
+
+## How to test persistence
+
+1. Launch the app → **Roster** tab loads the live roster (spinner, then list).
+2. Tap the ☆ on a few players (or open a player and **Save to favorites** with a note). Save at least 5 to exercise the requirement.
+3. Switch to the **Favorites** tab — your saved players appear.
+4. Toggle dark mode and change the sort order (these are saved to shared_preferences).
+5. **Fully kill the app** (don't just background it).
+6. **Reopen it.** Your favorites are still there, dark mode/sort are restored, and your last search query is pre-filled. ✅
+
+---
+
+## State handling
+
+The roster screen shows a **distinct UI for every state**:
+
+- **Loading** — centered spinner with "Loading roster…".
+- **Error** — friendly message + a working **Retry** button (try enabling airplane mode, then Retry with it off).
+- **Empty** — separate messages for "roster came back empty" vs. "no search matches".
+- **Success** — the scrollable, searchable list (also supports pull-to-refresh).
+
+---
+
+## Two edge cases & how the app handles them
+
+1. **No network / API failure.** All HTTP calls are wrapped with a timeout and typed `ApiException`s. Instead of crashing, the roster screen shows a friendly error state with a **Retry** button. The Favorites tab still works completely offline because it reads only from SQLite.
+
+2. **First run / empty or corrupted database.** On a fresh install the `favorites` table is empty, so the Favorites tab shows a welcoming empty state (not a crash or blank screen). `Player.fromMap` defensively defaults every field, so a missing or partially-corrupted row degrades to safe placeholder values instead of throwing. Duplicate saves are impossible because the player id is the primary key with `ConflictAlgorithm.replace`.
+
+---
+
+## Demo checklist (maps to the video requirements)
+
+- [x] App launch — persisted favorites load from a previous session
+- [x] API fetch in action — spinner then results
+- [x] Error state — message + working Retry
+- [x] Save an item from API results to local storage
+- [x] Navigate to Favorites — confirm the item is there
+- [x] Delete an item (swipe or trash icon) and use Clear All
+- [x] Close & reopen — persisted items still present
