@@ -19,6 +19,8 @@ The app opens on an **animated home dashboard** (Braves logo with a pulse, stagg
   (`144` is the Atlanta Braves team id.)
 - Player detail endpoint:
   `https://statsapi.mlb.com/api/v1/people/{playerId}`
+- Live stats endpoint (current season, hitting or pitching; career fallback):
+  `https://statsapi.mlb.com/api/v1/people/{playerId}/stats?stats=season&group=hitting`
 - Player headshots:
   `https://midfield.mlbstatic.com/v1/people/{playerId}/spots/120`
 

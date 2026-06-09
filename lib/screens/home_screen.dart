@@ -136,26 +136,28 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                       child: Container(
-                        padding: const EdgeInsets.all(20),
+                        width: 170,
+                        height: 170,
+                        padding: const EdgeInsets.all(26),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.06),
+                          color: Colors.white,
                           boxShadow: [
                             BoxShadow(
-                              color: bravesRed.withValues(alpha: 0.35),
-                              blurRadius: 40,
-                              spreadRadius: 4,
+                              color: bravesRed.withValues(alpha: 0.45),
+                              blurRadius: 45,
+                              spreadRadius: 2,
                             ),
                           ],
                         ),
                         child: Image.asset(
-                          'assets/Atlanta-Braves-logo.png',
-                          height: 140,
+                          'assets/braves_a_logo.png',
+                          fit: BoxFit.contain,
                           // Graceful fallback if the asset is missing.
                           errorBuilder: (_, _, _) => const Icon(
                             Icons.sports_baseball,
-                            size: 120,
-                            color: Colors.white,
+                            size: 110,
+                            color: bravesRed,
                           ),
                         ),
                       ),

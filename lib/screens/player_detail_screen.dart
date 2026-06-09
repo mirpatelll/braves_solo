@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../main.dart' show notifyFavoritesChanged;
+import '../main.dart' show notifyFavoritesChanged, bravesRed;
 import '../models/player.dart';
+import '../models/player_stats.dart';
 import '../services/api_service.dart';
 import '../services/database_helper.dart';
 
@@ -29,6 +30,11 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
   bool _detailsFailed = false;
   bool _isFavorite = false;
 
+  // Live season/career stats.
+  bool _loadingStats = true;
+  bool _statsFailed = false;
+  PlayerStats? _stats;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +57,28 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
     }
     if (mounted) setState(() {});
     await _loadDetails();
+    await _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    setState(() {
+      _loadingStats = true;
+      _statsFailed = false;
+    });
+    try {
+      final stats = await widget.api.fetchPlayerStats(_player);
+      if (!mounted) return;
+      setState(() {
+        _stats = stats;
+        _loadingStats = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingStats = false;
+        _statsFailed = true;
+      });
+    }
   }
 
   Future<void> _loadDetails() async {
@@ -102,6 +130,63 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
       ..showSnackBar(
         SnackBar(content: Text('Removed ${_player.fullName} from favorites')),
       );
+  }
+
+  /// Live stats card: loading spinner -> stat grid, with its own Retry on
+  /// failure and a graceful "no stats" message.
+  Widget _buildStatsSection() {
+    final header = Row(
+      children: [
+        const Icon(Icons.bar_chart, color: bravesRed),
+        const SizedBox(width: 8),
+        Text(
+          _stats == null
+              ? 'Live Stats'
+              : '${_stats!.season} ${_stats!.isPitcher ? "Pitching" : "Hitting"} Stats',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      ],
+    );
+
+    Widget content;
+    if (_loadingStats) {
+      content = const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    } else if (_statsFailed) {
+      content = Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: _loadStats,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Couldn’t load stats — Retry'),
+        ),
+      );
+    } else if (_stats == null || _stats!.isEmpty) {
+      content = const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text('No stats available for this player yet.'),
+      );
+    } else {
+      content = GridView.count(
+        crossAxisCount: 3,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1.5,
+        children: [
+          for (final line in _stats!.lines)
+            _StatTile(label: line.key, value: line.value),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [header, const SizedBox(height: 12), content],
+    );
   }
 
   @override
@@ -167,6 +252,9 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
             _DetailRow(label: 'Born in', value: _player.birthCountry),
           ],
 
+          const SizedBox(height: 24),
+          _buildStatsSection(),
+
           const SizedBox(height: 20),
           Text('Your note', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -230,6 +318,43 @@ class _DetailRow extends StatelessWidget {
             ),
           ),
           Expanded(child: Text(value ?? '—')),
+        ],
+      ),
+    );
+  }
+}
+
+/// A single stat box (big value + small label) used in the stats grid.
+class _StatTile extends StatelessWidget {
+  final String label;
+  final String value;
+  const _StatTile({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );

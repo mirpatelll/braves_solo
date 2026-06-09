@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/player.dart';
+import '../models/player_stats.dart';
 
 /// Thrown for any user-recoverable network/parse problem so the UI can show a
 /// friendly message + Retry instead of a raw exception.
@@ -71,6 +72,44 @@ class ApiService {
     final people = decoded['people'] as List<dynamic>? ?? const [];
     if (people.isEmpty) return base;
     return base.withDetails(people.first as Map<String, dynamic>);
+  }
+
+  /// Fetches a player's live stats for the current season. Pitchers get
+  /// pitching stats, everyone else gets hitting stats. If the current season
+  /// has no data yet (e.g. a call-up early in the year), it falls back to the
+  /// player's career totals so the UI always has something to show.
+  Future<PlayerStats?> fetchPlayerStats(Player player) async {
+    final isPitcher = player.position.toUpperCase() == 'P';
+    final group = isPitcher ? 'pitching' : 'hitting';
+
+    Future<PlayerStats?> request(String statsType) async {
+      final uri = Uri.parse(
+        '$_base/people/${player.id}/stats?stats=$statsType&group=$group',
+      );
+      final res = await _client.get(uri).timeout(const Duration(seconds: 15));
+      if (res.statusCode != 200) return null;
+
+      final decoded = json.decode(res.body) as Map<String, dynamic>;
+      final statsList = decoded['stats'] as List<dynamic>? ?? const [];
+      if (statsList.isEmpty) return null;
+
+      final splits =
+          (statsList.first as Map<String, dynamic>)['splits'] as List<dynamic>?;
+      if (splits == null || splits.isEmpty) return null;
+
+      final split = splits.first as Map<String, dynamic>;
+      final stat = split['stat'] as Map<String, dynamic>? ?? const {};
+      final season = statsType == 'career'
+          ? 'Career'
+          : (split['season'] as String? ?? 'Season');
+
+      return isPitcher
+          ? PlayerStats.pitching(season, stat)
+          : PlayerStats.hitting(season, stat);
+    }
+
+    // Try the current season first; fall back to career totals.
+    return await request('season') ?? await request('career');
   }
 
   void dispose() => _client.close();
