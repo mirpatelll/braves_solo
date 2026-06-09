@@ -6,6 +6,8 @@ A Flutter app that fetches the **live Atlanta Braves active roster** from the fr
 
 This is the combined **Solo 3 + Solo 4** submission (Fetch & Display + Local Persistence).
 
+The app opens on an **animated home dashboard** (Braves logo with a pulse, staggered entrance, and a live count of saved players) with quick-action cards into the Roster and Favorites tabs.
+
 ---
 
 ## API used
@@ -64,6 +66,7 @@ lib/
     database_helper.dart          SQLite CRUD for favorites
     prefs_service.dart            shared_preferences (theme, sort, last query)
   screens/
+    home_screen.dart              Animated landing dashboard + quick actions
     roster_screen.dart            Part A — fetch/search/display roster
     player_detail_screen.dart     Detail view + save-with-note (API↔storage)
     favorites_screen.dart         Part B — view/delete/clear saved players

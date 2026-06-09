@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'services/prefs_service.dart';
+import 'screens/home_screen.dart';
 import 'screens/roster_screen.dart';
 import 'screens/favorites_screen.dart';
 
@@ -114,9 +115,16 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
+  void _goToTab(int i) => setState(() => _index = i);
+
   @override
   Widget build(BuildContext context) {
     final screens = [
+      HomeScreen(
+        onNavigateToTab: _goToTab,
+        darkMode: widget.darkMode,
+        onToggleDarkMode: widget.onToggleDarkMode,
+      ),
       RosterScreen(
         prefs: widget.prefs,
         darkMode: widget.darkMode,
@@ -129,8 +137,13 @@ class _HomeShellState extends State<HomeShell> {
       body: IndexedStack(index: _index, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: _goToTab,
         destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
           NavigationDestination(
             icon: Icon(Icons.sports_baseball_outlined),
             selectedIcon: Icon(Icons.sports_baseball),
