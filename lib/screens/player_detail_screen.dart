@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../main.dart' show notifyFavoritesChanged, bravesRed;
+import '../main.dart' show notifyFavoritesChanged, bravesRed, bravesNavy;
 import '../models/player.dart';
 import '../models/player_stats.dart';
 import '../services/api_service.dart';
@@ -132,21 +132,12 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
       );
   }
 
-  /// Live stats card: loading spinner -> stat grid, with its own Retry on
-  /// failure and a graceful "no stats" message.
+  /// Live stats card: a compact, color-accented panel with a Braves gradient
+  /// header and a tight stat grid. Handles loading / retry / empty inline.
   Widget _buildStatsSection() {
-    final header = Row(
-      children: [
-        const Icon(Icons.bar_chart, color: bravesRed),
-        const SizedBox(width: 8),
-        Text(
-          _stats == null
-              ? 'Live Stats'
-              : '${_stats!.season} ${_stats!.isPitcher ? "Pitching" : "Hitting"} Stats',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      ],
-    );
+    final title = _stats == null
+        ? 'Live Stats'
+        : '${_stats!.season} ${_stats!.isPitcher ? "Pitching" : "Hitting"}';
 
     Widget content;
     if (_loadingStats) {
@@ -165,17 +156,18 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
       );
     } else if (_stats == null || _stats!.isEmpty) {
       content = const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: 12),
         child: Text('No stats available for this player yet.'),
       );
     } else {
       content = GridView.count(
-        crossAxisCount: 3,
+        crossAxisCount: 4,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 1.5,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 1.0,
+        padding: const EdgeInsets.all(12),
         children: [
           for (final line in _stats!.lines)
             _StatTile(label: line.key, value: line.value),
@@ -183,9 +175,53 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [header, const SizedBox(height: 12), content],
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: bravesNavy.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Braves-colored header strip.
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [bravesNavy, bravesRed],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.bar_chart, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // For loading/retry/empty states, give the message some padding;
+          // the grid brings its own.
+          if (_loadingStats || _statsFailed || _stats == null || _stats!.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: content,
+            )
+          else
+            content,
+        ],
+      ),
     );
   }
 
@@ -333,25 +369,33 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        color: bravesNavy.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: bravesNavy.withValues(alpha: 0.08)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+                color: bravesRed,
+              ),
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 3),
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
