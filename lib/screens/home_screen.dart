@@ -92,13 +92,22 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Theme-aware palette: a deep navy gradient in dark mode, a soft light
+    // gradient in light mode. `fg` is the primary text/icon color that reads
+    // well on whichever background is active.
+    final dark = widget.darkMode;
+    final gradient = dark
+        ? const [bravesNavy, Color(0xFF0A1530)]
+        : const [Color(0xFFE8EEF7), Color(0xFFF6F8FC)];
+    final fg = dark ? Colors.white : bravesNavy;
+
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [bravesNavy, Color(0xFF0A1530)],
+            colors: gradient,
           ),
         ),
         child: SafeArea(
@@ -117,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen>
                     onPressed: widget.onToggleDarkMode,
                     icon: Icon(
                       widget.darkMode ? Icons.light_mode : Icons.dark_mode,
-                      color: Colors.white,
+                      color: fg,
                     ),
                   ),
                 ),
@@ -172,11 +181,11 @@ class _HomeScreenState extends State<HomeScreen>
                   end: 0.6,
                   child: Column(
                     children: [
-                      const Text(
+                      Text(
                         'Atlanta Braves',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.white,
+                          color: fg,
                           fontSize: 34,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
@@ -187,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen>
                         'Roster & Favorites',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
+                          color: fg.withValues(alpha: 0.7),
                           fontSize: 16,
                           letterSpacing: 3,
                         ),
@@ -212,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen>
                 _staggered(
                   start: 0.45,
                   end: 0.8,
-                  child: _StatBanner(count: _favoriteCount),
+                  child: _StatBanner(count: _favoriteCount, darkMode: dark),
                 ),
                 const SizedBox(height: 24),
 
@@ -257,16 +266,19 @@ class _HomeScreenState extends State<HomeScreen>
 /// animating up whenever it changes.
 class _StatBanner extends StatelessWidget {
   final int count;
-  const _StatBanner({required this.count});
+  final bool darkMode;
+  const _StatBanner({required this.count, required this.darkMode});
 
   @override
   Widget build(BuildContext context) {
+    final fg = darkMode ? Colors.white : bravesNavy;
+    final base = darkMode ? Colors.white : bravesNavy;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: base.withValues(alpha: darkMode ? 0.08 : 0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: base.withValues(alpha: 0.12)),
       ),
       child: Row(
         children: [
@@ -281,8 +293,8 @@ class _StatBanner extends StatelessWidget {
                 curve: Curves.easeOut,
                 builder: (context, value, _) => Text(
                   '$value',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: fg,
                     fontSize: 30,
                     fontWeight: FontWeight.bold,
                   ),
@@ -291,7 +303,7 @@ class _StatBanner extends StatelessWidget {
               Text(
                 'players saved locally',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: fg.withValues(alpha: 0.7),
                   fontSize: 13,
                 ),
               ),
